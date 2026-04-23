@@ -4,9 +4,6 @@
 <PageTitle>Expense Tracker</PageTitle>
 
 <div class="app-shell container-fluid px-2 px-md-3">
-    <header class="app-header">
-        <h1><i class="fa-solid fa-wallet"></i> Expense Tracker</h1>
-    </header>
 
     <nav class="tab-nav">
         <button class="@(ActiveTab == AppTab.Records ? "active" : null)" @onclick="() => ActiveTab = AppTab.Records">
@@ -17,15 +14,23 @@
             <i class="fa-solid fa-chart-pie"></i>
             <span>Analytics</span>
         </button>
+        <button class="@(ActiveTab == AppTab.Settings ? "active" : null)" @onclick="() => ActiveTab = AppTab.Settings">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+        </button>
     </nav>
 
     @if (ActiveTab == AppTab.Records)
     {
         <RecordsTab Records="Records" OnCreate="OpenCreate" OnSelect="OpenEdit" />
     }
-    else
+    else if (ActiveTab == AppTab.Analytics)
     {
         <AnalyticsTab Records="Records" />
+    }
+    else
+    {
+        <SettingsTab OnDataChanged="ReloadRecordsAsync" />
     }
 </div>
 
@@ -36,7 +41,7 @@
     OnClose="CloseEditor" />
 
 @code {
-    private enum AppTab { Records, Analytics }
+    private enum AppTab { Records, Analytics, Settings }
 
     private List<ExpenseRecord> Records { get; set; } = [];
     private ExpenseRecord EditingRecord { get; set; } = new() { Id = Guid.Empty };
@@ -45,7 +50,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await ReloadRecordsAsync();
+    }
+
+    private async Task ReloadRecordsAsync()
+    {
         Records = (await StorageService.GetAllAsync()).OrderByDescending(r => r.CreatedAt).ToList();
+        StateHasChanged();
     }
 
     private void OpenCreate()
@@ -72,7 +83,7 @@
     private async Task SaveRecord(ExpenseRecord record)
     {
         await StorageService.UpsertAsync(record);
-        Records = (await StorageService.GetAllAsync()).OrderByDescending(r => r.CreatedAt).ToList();
+        await ReloadRecordsAsync();
         CloseEditor();
     }
 

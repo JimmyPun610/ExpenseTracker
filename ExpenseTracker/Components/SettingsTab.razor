@@ -1,0 +1,314 @@
+@inject IExpenseStorageService StorageService
+@inject IJSRuntime JS
+@using System.Text
+@using System.Globalization
+
+<section class="settings-page">
+
+    @if (!string.IsNullOrEmpty(_statusMessage))
+    {
+        <div class="settings-toast @(_isError ? "settings-toast--error" : "settings-toast--success")">
+            <i class="fa-solid @(_isError ? "fa-circle-xmark" : "fa-circle-check")"></i>
+            @_statusMessage
+        </div>
+    }
+
+     @* ── General ───────────────────────────────────────────────────────────  *@
+    <div class="settings-section-label">General</div>
+    <div class="settings-card">
+        <button class="settings-row" @onclick="() => _showAbout = true">
+            <span class="settings-row-icon settings-row-icon--indigo">
+                <i class="fa-solid fa-circle-info"></i>
+            </span>
+            <span class="settings-row-body">
+                <span class="settings-row-title">About</span>
+                <span class="settings-row-sub">Privacy &amp; source code</span>
+            </span>
+            <i class="fa-solid fa-chevron-right settings-row-chevron"></i>
+        </button>
+    </div>
+
+     @* ── Storage ────────────────────────────────────────────────────────────  *@
+    <div class="settings-section-label">Storage</div>
+    <div class="settings-card">
+
+        <button class="settings-row" @onclick="ExportCsvAsync" disabled="@_busy">
+            <span class="settings-row-icon settings-row-icon--blue">
+                <i class="fa-solid fa-download"></i>
+            </span>
+            <span class="settings-row-body">
+                <span class="settings-row-title">Export records</span>
+                <span class="settings-row-sub">Download a .CSV backup file</span>
+            </span>
+            @if (_busy && _activeAction == Action.Export)
+            {
+                <span class="settings-row-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
+            }
+            else
+            {
+                <i class="fa-solid fa-chevron-right settings-row-chevron"></i>
+            }
+        </button>
+
+        <div class="settings-row-divider"></div>
+
+        <label class="settings-row @(_busy ? "settings-row--disabled" : null)">
+            <span class="settings-row-icon settings-row-icon--green">
+                <i class="fa-solid fa-file-import"></i>
+            </span>
+            <span class="settings-row-body">
+                <span class="settings-row-title">Import records</span>
+                <span class="settings-row-sub">Restore from a .CSV file</span>
+            </span>
+            @if (_busy && _activeAction == Action.Import)
+            {
+                <span class="settings-row-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
+            }
+            else
+            {
+                <i class="fa-solid fa-chevron-right settings-row-chevron"></i>
+            }
+            <InputFile OnChange="ImportCsvAsync" accept=".csv" style="display:none" disabled="@_busy" />
+        </label>
+
+        <div class="settings-row-divider"></div>
+
+        <button class="settings-row" @onclick="() => _confirmClear = true" disabled="@_busy">
+            <span class="settings-row-icon settings-row-icon--red">
+                <i class="fa-solid fa-trash"></i>
+            </span>
+            <span class="settings-row-body">
+                <span class="settings-row-title settings-row-title--red">Clear local cache</span>
+                <span class="settings-row-sub">Remove all records from this device</span>
+            </span>
+            <i class="fa-solid fa-chevron-right settings-row-chevron"></i>
+        </button>
+
+    </div>
+
+</section>
+
+@* ── About modal ───────────────────────────────────────────────────────────── *@
+@if (_showAbout)
+{
+    <div class="modal-backdrop" @onclick="() => _showAbout = false"></div>
+    <div class="modal-sheet">
+        <div class="modal-sheet-icon modal-sheet-icon--indigo">
+            <i class="fa-solid fa-wallet"></i>
+        </div>
+        <h3 class="modal-sheet-title">Expense Tracker</h3>
+
+        <div class="about-item">
+            <i class="fa-solid fa-shield-halved about-item-icon"></i>
+            <div>
+                <strong>Your data stays on your device</strong>
+                <p>All records are stored exclusively in your browser's local storage. No data is ever transmitted, uploaded, or shared with any server or third party.</p>
+            </div>
+        </div>
+
+        <div class="about-item">
+            <i class="fa-brands fa-github about-item-icon"></i>
+            <div>
+                <strong>Open source</strong>
+                <p>The full source code is publicly available and free to inspect.</p>
+                <a href="https://github.com/JimmyPun610/ExpenseTracker" target="_blank" rel="noopener noreferrer" class="about-link">
+                    github.com/JimmyPun610/ExpenseTracker
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+            </div>
+        </div>
+
+        <button class="modal-sheet-btn modal-sheet-btn--cancel" @onclick="() => _showAbout = false">
+            Close
+        </button>
+    </div>
+}
+
+@* ── Confirm delete modal ──────────────────────────────────────────────────── *@
+@if (_confirmClear)
+{
+    <div class="modal-backdrop" @onclick="() => _confirmClear = false"></div>
+    <div class="modal-sheet">
+        <div class="modal-sheet-icon">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 class="modal-sheet-title">Clear all data?</h3>
+        <p class="modal-sheet-body">This will permanently delete every record stored on this device. This action cannot be undone.</p>
+        <div class="modal-sheet-btns">
+            <button class="modal-sheet-btn modal-sheet-btn--danger" @onclick="ConfirmClearAsync" disabled="@_busy">
+                @if (_busy && _activeAction == Action.Clear)
+                {
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                }
+                else
+                {
+                    <span>Yes, delete all</span>
+                }
+            </button>
+            <button class="modal-sheet-btn modal-sheet-btn--cancel" @onclick="() => _confirmClear = false" disabled="@_busy">
+                Cancel
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private enum Action { None, Export, Import, Clear }
+
+    private bool _busy;
+    private bool _confirmClear;
+    private bool _showAbout;
+    private bool _isError;
+    private string? _statusMessage;
+    private Action _activeAction = Action.None;
+
+    private static readonly string[] CsvHeaders =
+        ["Id", "Amount", "Category", "CreatedAt", "Note"];
+
+    // ── Export ────────────────────────────────────────────────────────────────
+    private async Task ExportCsvAsync()
+    {
+        SetBusy(Action.Export);
+        try
+        {
+            var records = await StorageService.GetAllAsync();
+            var sb = new StringBuilder();
+            sb.Append(string.Join(",", CsvHeaders));
+            sb.Append('\n');
+
+            foreach (var r in records.OrderByDescending(r => r.CreatedAt))
+            {
+                sb.Append(string.Join(",",
+                    r.Id,
+                    r.Amount.ToString(CultureInfo.InvariantCulture),
+                    EscapeCsv(r.Category),
+                    r.CreatedAt.ToString("o", CultureInfo.InvariantCulture),
+                    EscapeCsv(r.Note ?? "")));
+                sb.Append('\n');
+            }
+
+            var fileName = $"expenses_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
+            await JS.InvokeVoidAsync("csvTools.download", fileName, sb.ToString());
+            ShowStatus($"Exported {records.Count} record(s) successfully.", false);
+        }
+        catch (Exception ex) { ShowStatus($"Export failed: {ex.Message}", true); }
+        finally { ClearBusy(); }
+    }
+
+    // ── Import ────────────────────────────────────────────────────────────────
+    private async Task ImportCsvAsync(InputFileChangeEventArgs e)
+    {
+        SetBusy(Action.Import);
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var content = Encoding.UTF8.GetString(ms.ToArray());
+
+            var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+            var imported = new List<ExpenseRecord>();
+            foreach (var raw in lines.Skip(1))
+            {
+                var line = raw.TrimEnd('\r');
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                var record = ParseCsvLine(line);
+                if (record is not null)
+                    imported.Add(record);
+            }
+
+            if (imported.Count == 0)
+            {
+                ShowStatus("No valid records found in the file.", true);
+                return;
+            }
+
+            await StorageService.ImportAsync(imported);
+            await OnDataChanged.InvokeAsync();
+            ShowStatus($"Imported {imported.Count} record(s) successfully.", false);
+        }
+        catch (Exception ex) { ShowStatus($"Import failed: {ex.Message}", true); }
+        finally { ClearBusy(); }
+    }
+
+    private static ExpenseRecord? ParseCsvLine(string line)
+    {
+        var cols = SplitCsvLine(line);
+        if (cols.Length < 5) return null;
+
+        var idStr      = cols[0].Trim();
+        var amountStr  = cols[1].Trim();
+        var category   = cols[2].Trim();
+        var createdStr = cols[3].Trim();
+        var note       = cols[4].Trim();
+
+        if (!Guid.TryParse(idStr, out var id)) return null;
+        if (!decimal.TryParse(amountStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var amount)) return null;
+        if (!DateTime.TryParse(createdStr, null, DateTimeStyles.RoundtripKind, out var createdAt)) return null;
+
+        return new ExpenseRecord
+        {
+            Id = id,
+            Amount = amount,
+            Category = category,
+            CreatedAt = createdAt,
+            Note = string.IsNullOrWhiteSpace(note) ? null : note
+        };
+    }
+
+    // ── Clear ─────────────────────────────────────────────────────────────────
+    private async Task ConfirmClearAsync()
+    {
+        SetBusy(Action.Clear);
+        _confirmClear = false;
+        try
+        {
+            await StorageService.DeleteAllAsync();
+            await OnDataChanged.InvokeAsync();
+            ShowStatus("All records have been deleted.", false);
+        }
+        catch (Exception ex) { ShowStatus($"Clear failed: {ex.Message}", true); }
+        finally { ClearBusy(); }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    private void SetBusy(Action a) { _busy = true; _activeAction = a; _statusMessage = null; }
+    private void ClearBusy() { _busy = false; _activeAction = Action.None; }
+    private void ShowStatus(string msg, bool error) { _statusMessage = msg; _isError = error; }
+
+    private static string EscapeCsv(string value)
+    {
+        if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        return value;
+    }
+
+    private static string[] SplitCsvLine(string line)
+    {
+        var result = new List<string>();
+        var current = new StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                { current.Append('"'); i++; }
+                else
+                { inQuotes = !inQuotes; }
+            }
+            else if (c == ',' && !inQuotes)
+            { result.Add(current.ToString()); current.Clear(); }
+            else
+            { current.Append(c); }
+        }
+        result.Add(current.ToString());
+        return [.. result];
+    }
+}

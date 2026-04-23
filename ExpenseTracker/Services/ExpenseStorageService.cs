@@ -12,9 +12,7 @@ public class ExpenseStorageService(IJSRuntime jsRuntime) : IExpenseStorageServic
     {
         var json = await jsRuntime.InvokeAsync<string?>("expenseStore.get", StorageKey);
         if (string.IsNullOrWhiteSpace(json))
-        {
             return [];
-        }
 
         var records = JsonSerializer.Deserialize<List<ExpenseRecord>>(json);
         return records ?? [];
@@ -26,15 +24,33 @@ public class ExpenseStorageService(IJSRuntime jsRuntime) : IExpenseStorageServic
         var index = records.FindIndex(r => r.Id == record.Id);
 
         if (index >= 0)
-        {
             records[index] = record;
-        }
         else
-        {
             records.Add(record);
-        }
 
         var payload = JsonSerializer.Serialize(records);
+        await jsRuntime.InvokeVoidAsync("expenseStore.set", StorageKey, payload);
+    }
+
+    public async Task DeleteAllAsync()
+    {
+        await jsRuntime.InvokeVoidAsync("expenseStore.remove", StorageKey);
+    }
+
+    public async Task ImportAsync(IEnumerable<ExpenseRecord> records)
+    {
+        var existing = (await GetAllAsync()).ToList();
+
+        foreach (var record in records)
+        {
+            var index = existing.FindIndex(r => r.Id == record.Id);
+            if (index >= 0)
+                existing[index] = record;
+            else
+                existing.Add(record);
+        }
+
+        var payload = JsonSerializer.Serialize(existing);
         await jsRuntime.InvokeVoidAsync("expenseStore.set", StorageKey, payload);
     }
 }

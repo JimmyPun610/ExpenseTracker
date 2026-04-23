@@ -1,6 +1,21 @@
 window.expenseStore = {
     get: (key) => localStorage.getItem(key),
-    set: (key, value) => localStorage.setItem(key, value)
+    set: (key, value) => localStorage.setItem(key, value),
+    remove: (key) => localStorage.removeItem(key)
+};
+
+window.csvTools = {
+    download: (filename, csvContent) => {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
 };
 
 window.receiptOcr = {
