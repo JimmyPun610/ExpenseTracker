@@ -63,7 +63,7 @@ body {
 .app-shell {
     max-width: 920px;
     margin: 0 auto;
-    padding: 1rem 1rem 6rem;
+    padding: 1rem 1rem calc(72px + env(safe-area-inset-bottom));
 }
 
 .app-header h1 {
@@ -75,28 +75,58 @@ body {
 }
 
 .tab-nav {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    background: #bfdbfe;
-    border-radius: .75rem;
-    padding: .25rem;
-    margin-bottom: 1rem;
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, .08);
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    margin: 0;
+    border-radius: 0;
 }
 
 .tab-nav button {
+    flex: 1;
     border: 0;
     background: transparent;
-    border-radius: .6rem;
-    padding: .6rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem;
+    padding: .55rem .5rem calc(.55rem);
+    font-size: .7rem;
     font-weight: 600;
-    color: #1e3a8a;
-    transition: background-color .15s ease, color .15s ease;
+    color: #94a3b8;
+    transition: color .15s ease, background-color .15s ease;
+    cursor: pointer;
+    min-height: 56px;
+}
+
+.tab-nav button i {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.tab-nav button span {
+    line-height: 1;
 }
 
 .tab-nav button.active {
-    background: #ffffff;
-    color: #0f172a;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
+    color: #2563eb;
+    background: transparent;
+    box-shadow: none;
+}
+
+.tab-nav button.active i {
+    /* pop the active icon slightly */
+    transform: translateY(-2px);
+    transition: transform .15s ease;
 }
 
 .panel {
@@ -400,7 +430,7 @@ body {
     background: #2563eb;
     position: fixed;
     right: 1.5rem;
-    bottom: 1.5rem;
+    bottom: calc(56px + 1rem + env(safe-area-inset-bottom));
     box-shadow: 0 12px 20px rgba(37, 99, 235, .45);
 }
 
@@ -523,7 +553,7 @@ body {
 
 @media (max-width: 768px) {
     .app-shell {
-        padding: .75rem .75rem 5.5rem;
+        padding: .75rem .75rem calc(72px + env(safe-area-inset-bottom));
     }
 
     .panel {
@@ -563,7 +593,7 @@ body {
         width: 3.3rem;
         height: 3.3rem;
         right: 1rem;
-        bottom: calc(1rem + env(safe-area-inset-bottom));
+        bottom: calc(56px + 1rem + env(safe-area-inset-bottom));
     }
 
     .records-header {

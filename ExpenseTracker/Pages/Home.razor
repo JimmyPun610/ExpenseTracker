@@ -11,10 +11,12 @@
 
     <nav class="tab-nav">
         <button class="@(ActiveTab == AppTab.Records ? "active" : null)" @onclick="() => ActiveTab = AppTab.Records">
-            <i class="fa-solid fa-list"></i> Records
+            <i class="fa-solid fa-list"></i>
+            <span>Records</span>
         </button>
         <button class="@(ActiveTab == AppTab.Analytics ? "active" : null)" @onclick="() => ActiveTab = AppTab.Analytics">
-            <i class="fa-solid fa-chart-pie"></i> Analytics
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Analytics</span>
         </button>
     </nav>
 
