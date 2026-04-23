@@ -1,0 +1,36 @@
+<section class="panel">
+    <div class="records-header">
+        <div>
+            <h2>Recent expenses</h2>
+            <small>@Records.Count record(s)</small>
+        </div>
+        <div class="records-header-total">
+            <span>Total</span>
+            <strong>@Records.Sum(r => r.Amount).ToString("0.00")</strong>
+        </div>
+    </div>
+
+    @if (Records.Count == 0)
+    {
+        <p class="empty-state">No expenses yet. Tap + to add your first record.</p>
+    }
+    else
+    {
+        <div class="records-list">
+            @foreach (var item in Records.OrderByDescending(r => r.CreatedAt).Take(25))
+            {
+                <ExpenseRecordItem Item="item" OnSelect="OnSelect" />
+            }
+        </div>
+    }
+
+    <button class="fab" @onclick="OnCreate" title="Create">
+        <i class="fa-solid fa-circle-plus"></i>
+    </button>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public List<ExpenseRecord> Records { get; set; } = [];
+    [Parameter] public EventCallback OnCreate { get; set; }
+    [Parameter] public EventCallback<ExpenseRecord> OnSelect { get; set; }
+}

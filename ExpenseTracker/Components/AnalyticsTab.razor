@@ -1,0 +1,267 @@
+<section class="panel analytics">
+    <div class="analytics-presets">
+        @foreach (var preset in Enum.GetValues<AnalyticsPreset>())
+        {
+            <button class="@(SelectedPreset == preset ? "active" : null)" @onclick="() => ApplyPreset(preset)">@GetPresetLabel(preset)</button>
+        }
+    </div>
+
+    <div class="filters">
+        <label>
+            Category
+            <select class="form-select" @bind="FilterCategory">
+                <option value="All">All</option>
+                @foreach (var category in AllCategories)
+                {
+                    <option value="@category">@category</option>
+                }
+            </select>
+        </label>
+        <label>
+            From
+            <input class="form-control" type="date" @bind="FromDate" />
+        </label>
+        <label>
+            To
+            <input class="form-control" type="date" @bind="ToDate" />
+        </label>
+    </div>
+
+    <div class="kpi-grid">
+        @foreach (var kpi in AnalyticsKpis)
+        {
+            <article class="kpi-card">
+                <i class="@kpi.Icon"></i>
+                <span>@kpi.Title</span>
+                <strong>@kpi.Value</strong>
+            </article>
+        }
+    </div>
+
+    <div class="analytics-grid">
+        <article class="analytics-panel">
+            <h3>Spend by Category</h3>
+            <PieChart Items="ChartItems" />
+        </article>
+
+        <article class="analytics-panel">
+            <h3>Trend</h3>
+            <TrendBarChart Items="TrendItems" />
+        </article>
+    </div>
+
+    <article class="analytics-panel mt-3">
+        <h3>Top Categories</h3>
+        @if (ChartItems.Count == 0)
+        {
+            <p class="empty-state">No category data for selected period.</p>
+        }
+        else
+        {
+            <div class="ranking-table-wrap">
+                <table class="table ranking-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-end">Share</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in CategoryRanking)
+                        {
+                            <tr>
+                                <td>@row.Category</td>
+                                <td class="text-end">@row.Amount.ToString("0.00")</td>
+                                <td class="text-end">@row.Share.ToString("0.#")%</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </article>
+</section>
+
+@code {
+    public enum AnalyticsPreset { ThisMonth, Last30Days, ThisYear, All }
+
+    private record CategoryRankRow(string Category, decimal Amount, double Share);
+
+    [Parameter, EditorRequired] public List<ExpenseRecord> Records { get; set; } = [];
+
+    private string FilterCategory { get; set; } = "All";
+    private AnalyticsPreset SelectedPreset { get; set; } = AnalyticsPreset.ThisMonth;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private bool _isApplyingPreset;
+
+    private DateTime? FromDate
+    {
+        get => _fromDate;
+        set
+        {
+            _fromDate = value;
+            if (!_isApplyingPreset) SelectedPreset = AnalyticsPreset.All;
+        }
+    }
+
+    private DateTime? ToDate
+    {
+        get => _toDate;
+        set
+        {
+            _toDate = value;
+            if (!_isApplyingPreset) SelectedPreset = AnalyticsPreset.All;
+        }
+    }
+
+    private IEnumerable<string> AllCategories =>
+        Records.Select(r => r.Category).Concat(ExpenseCategories.Defaults).Distinct().OrderBy(c => c);
+
+    private IReadOnlyList<ExpenseRecord> FilteredRecords =>
+        Records
+            .Where(r =>
+                (FilterCategory == "All" || r.Category == FilterCategory) &&
+                (!FromDate.HasValue || r.CreatedAt.ToLocalTime().Date >= FromDate.Value.Date) &&
+                (!ToDate.HasValue || r.CreatedAt.ToLocalTime().Date <= ToDate.Value.Date))
+            .OrderByDescending(r => r.CreatedAt)
+            .ToList();
+
+    private IReadOnlyList<CategoryTotal> ChartItems =>
+        FilteredRecords
+            .GroupBy(r => r.Category)
+            .Select(g => new CategoryTotal(g.Key, g.Sum(x => x.Amount)))
+            .OrderByDescending(x => x.Total)
+            .ToList();
+
+    private IReadOnlyList<TrendPoint> TrendItems => BuildTrendItems(FilteredRecords);
+
+    private IReadOnlyList<AnalyticsKpi> AnalyticsKpis
+    {
+        get
+        {
+            var total = FilteredRecords.Sum(r => r.Amount);
+            var count = FilteredRecords.Count;
+            var highest = FilteredRecords.Count == 0 ? 0 : FilteredRecords.Max(r => r.Amount);
+            var daySpan = Math.Max(1, GetRangeDays());
+            var avgPerDay = total / daySpan;
+            var avgPerRecord = count == 0 ? 0 : total / count;
+
+            return
+            [
+                new AnalyticsKpi("Total", total.ToString("0.00"), "fa-solid fa-sack-dollar"),
+                new AnalyticsKpi("Records", count.ToString(), "fa-solid fa-receipt"),
+                new AnalyticsKpi("Avg / day", avgPerDay.ToString("0.00"), "fa-solid fa-calendar-day"),
+                new AnalyticsKpi("Highest", highest.ToString("0.00"), "fa-solid fa-arrow-trend-up"),
+                new AnalyticsKpi("Avg / record", avgPerRecord.ToString("0.00"), "fa-solid fa-calculator")
+            ];
+        }
+    }
+
+    private IReadOnlyList<CategoryRankRow> CategoryRanking
+    {
+        get
+        {
+            var total = ChartItems.Sum(c => c.Total);
+            if (total <= 0) return [];
+            return ChartItems
+                .Select(c => new CategoryRankRow(c.Category, c.Total, (double)(c.Total / total * 100m)))
+                .ToList();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        ApplyPreset(AnalyticsPreset.ThisMonth);
+    }
+
+    private string GetPresetLabel(AnalyticsPreset preset) => preset switch
+    {
+        AnalyticsPreset.ThisMonth => "This Month",
+        AnalyticsPreset.Last30Days => "Last 30 Days",
+        AnalyticsPreset.ThisYear => "This Year",
+        _ => "All"
+    };
+
+    private void ApplyPreset(AnalyticsPreset preset)
+    {
+        SelectedPreset = preset;
+        var today = DateTime.Today;
+        _isApplyingPreset = true;
+
+        switch (preset)
+        {
+            case AnalyticsPreset.ThisMonth:
+                FromDate = new DateTime(today.Year, today.Month, 1);
+                ToDate = today;
+                break;
+            case AnalyticsPreset.Last30Days:
+                FromDate = today.AddDays(-29);
+                ToDate = today;
+                break;
+            case AnalyticsPreset.ThisYear:
+                FromDate = new DateTime(today.Year, 1, 1);
+                ToDate = today;
+                break;
+            case AnalyticsPreset.All:
+                FromDate = null;
+                ToDate = null;
+                break;
+        }
+
+        _isApplyingPreset = false;
+    }
+
+    private int GetRangeDays()
+    {
+        if (FromDate.HasValue && ToDate.HasValue)
+            return Math.Max(1, (ToDate.Value.Date - FromDate.Value.Date).Days + 1);
+
+        if (FilteredRecords.Count == 0) return 1;
+
+        var min = FilteredRecords.Min(r => r.CreatedAt.ToLocalTime().Date);
+        var max = FilteredRecords.Max(r => r.CreatedAt.ToLocalTime().Date);
+        return Math.Max(1, (max - min).Days + 1);
+    }
+
+    private static IReadOnlyList<TrendPoint> BuildTrendItems(IReadOnlyList<ExpenseRecord> records)
+    {
+        if (records.Count == 0) return [];
+
+        var localDates = records.Select(r => r.CreatedAt.ToLocalTime().Date).ToList();
+        var minDate = localDates.Min();
+        var maxDate = localDates.Max();
+        var span = (maxDate - minDate).Days + 1;
+
+        if (span <= 31)
+        {
+            return records
+                .GroupBy(r => r.CreatedAt.ToLocalTime().Date)
+                .OrderBy(g => g.Key)
+                .Select(g => new TrendPoint(g.Key.ToString("MM-dd"), g.Sum(x => x.Amount)))
+                .ToList();
+        }
+
+        if (span <= 180)
+        {
+            return records
+                .GroupBy(r => StartOfWeek(r.CreatedAt.ToLocalTime().Date))
+                .OrderBy(g => g.Key)
+                .Select(g => new TrendPoint($"W {g.Key:MM-dd}", g.Sum(x => x.Amount)))
+                .ToList();
+        }
+
+        return records
+            .GroupBy(r => new DateTime(r.CreatedAt.ToLocalTime().Year, r.CreatedAt.ToLocalTime().Month, 1))
+            .OrderBy(g => g.Key)
+            .Select(g => new TrendPoint(g.Key.ToString("yyyy-MM"), g.Sum(x => x.Amount)))
+            .ToList();
+    }
+
+    private static DateTime StartOfWeek(DateTime date)
+    {
+        var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-diff).Date;
+    }
+}
