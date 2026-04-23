@@ -1,0 +1,27 @@
+@using ExpenseTracker.Models
+
+@if (Items.Count == 0)
+{
+    <p class="empty-state">No trend data for selected period.</p>
+}
+else
+{
+    var max = Items.Max(i => i.Value);
+
+    <div class="trend-chart">
+        @foreach (var item in Items)
+        {
+            var ratio = max <= 0 ? 0 : (double)(item.Value / max);
+            var height = Math.Max(8, ratio * 120);
+
+            <div class="trend-bar-item" title="@($"{item.Label}: {item.Value:0.00}")">
+                <div class="trend-bar" style="height:@($"{height:0.#}px")"></div>
+                <small>@item.Label</small>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<TrendPoint> Items { get; set; } = [];
+}

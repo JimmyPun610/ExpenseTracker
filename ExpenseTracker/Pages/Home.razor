@@ -1,0 +1,840 @@
+﻿@page "/"
+@inject IExpenseStorageService StorageService
+@inject IOcrService OcrService
+
+<PageTitle>Expense Tracker</PageTitle>
+
+<div class="app-shell container-fluid px-2 px-md-3">
+    <header class="app-header">
+        <h1><i class="fa-solid fa-wallet"></i> Expense Tracker</h1>
+    </header>
+
+    <nav class="tab-nav">
+        <button class="@(ActiveTab == AppTab.Records ? "active" : null)" @onclick="() => ActiveTab = AppTab.Records">
+            <i class="fa-solid fa-list"></i> Records
+        </button>
+        <button class="@(ActiveTab == AppTab.Analytics ? "active" : null)" @onclick="() => ActiveTab = AppTab.Analytics">
+            <i class="fa-solid fa-chart-pie"></i> Analytics
+        </button>
+    </nav>
+
+    @if (ActiveTab == AppTab.Records)
+    {
+        <section class="panel">
+            <div class="records-header">
+                <div>
+                    <h2>Recent expenses</h2>
+                    <small>@Records.Count record(s)</small>
+                </div>
+                <div class="records-header-total">
+                    <span>Total</span>
+                    <strong>@Records.Sum(r => r.Amount).ToString("0.00")</strong>
+                </div>
+            </div>
+
+            @if (Records.Count == 0)
+            {
+                <p class="empty-state">No expenses yet. Tap + to add your first record.</p>
+            }
+            else
+            {
+                <div class="records-list">
+                    @foreach (var item in Records.OrderByDescending(r => r.CreatedAt).Take(25))
+                    {
+                        <ExpenseRecordItem Item="item" OnSelect="OpenEdit" />
+                    }
+                </div>
+            }
+
+            <button class="fab" @onclick="OpenCreate" title="Create">
+                <i class="fa-solid fa-circle-plus"></i>
+            </button>
+        </section>
+    }
+    else
+    {
+        <section class="panel analytics">
+            <div class="analytics-presets">
+                @foreach (var preset in Enum.GetValues<AnalyticsPreset>())
+                {
+                    <button class="@(SelectedPreset == preset ? "active" : null)" @onclick="() => ApplyPreset(preset)">@GetPresetLabel(preset)</button>
+                }
+            </div>
+
+            <div class="filters">
+                <label>
+                    Category
+                    <select class="form-select" @bind="FilterCategory">
+                        <option value="All">All</option>
+                        @foreach (var category in AllCategories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    From
+                    <input class="form-control" type="date" @bind="FromDate" />
+                </label>
+                <label>
+                    To
+                    <input class="form-control" type="date" @bind="ToDate" />
+                </label>
+            </div>
+
+            <div class="kpi-grid">
+                @foreach (var kpi in AnalyticsKpis)
+                {
+                    <article class="kpi-card">
+                        <i class="@kpi.Icon"></i>
+                        <span>@kpi.Title</span>
+                        <strong>@kpi.Value</strong>
+                    </article>
+                }
+            </div>
+
+            <div class="analytics-grid">
+                <article class="analytics-panel">
+                    <h3>Spend by Category</h3>
+                    <PieChart Items="ChartItems" />
+                </article>
+
+                <article class="analytics-panel">
+                    <h3>Trend</h3>
+                    <TrendBarChart Items="TrendItems" />
+                </article>
+            </div>
+
+            <article class="analytics-panel mt-3">
+                <h3>Top Categories</h3>
+                @if (ChartItems.Count == 0)
+                {
+                    <p class="empty-state">No category data for selected period.</p>
+                }
+                else
+                {
+                    <div class="ranking-table-wrap">
+                        <table class="table ranking-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in CategoryRanking)
+                                {
+                                    <tr>
+                                        <td>@row.Category</td>
+                                        <td class="text-end">@row.Amount.ToString("0.00")</td>
+                                        <td class="text-end">@row.Share.ToString("0.#")%</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </article>
+        </section>
+    }
+</div>
+
+@if (ShowEditor)
+{
+    <div class="modal-backdrop" @onclick="CloseEditor"></div>
+    <section class="modal-panel shadow-lg">
+        <h3 class="mb-3">@(EditingRecord.Id == Guid.Empty ? "Create record" : "Edit record")</h3>
+
+        <div class="mb-3">
+            <label class="form-label mb-1">Amount</label>
+            <input class="form-control" value="@AmountInput" @oninput="OnAmountInputChanged" inputmode="decimal" />
+        </div>
+
+        <div class="calculator-shell">
+            <div class="calc-screen">
+                <small>@CalculatorExpression</small>
+                <strong>@CalculatorPreview</strong>
+            </div>
+
+            <div class="calculator">
+                @foreach (var key in CalculatorKeys)
+                {
+                    <button type="button" class="@GetCalcButtonClass(key)" @onclick="() => ApplyCalcKey(key)">@key</button>
+                }
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label mb-1">Date and time</label>
+            <InputDate class="form-control" Type="InputDateType.DateTimeLocal" @bind-Value="RecordDateTime" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label mb-1">Category</label>
+            <select class="form-select" @bind="SelectedCategory">
+                @foreach (var category in ExpenseCategories.Defaults)
+                {
+                    <option value="@category">@category</option>
+                }
+            </select>
+        </div>
+
+        @if (SelectedCategory == ExpenseCategories.Other)
+        {
+            <div class="mb-3">
+                <label class="form-label mb-1">Custom category</label>
+                <input class="form-control" @bind="CustomCategory" placeholder="Enter category" />
+            </div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label mb-1">Note</label>
+            <input class="form-control" @bind="EditingRecord.Note" placeholder="Optional" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label mb-1">Upload receipt</label>
+            <InputFile class="form-control" OnChange="OnReceiptSelected" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(EditingRecord.ReceiptDataUrl))
+        {
+            <img class="receipt-preview" src="@EditingRecord.ReceiptDataUrl" alt="Receipt preview" />
+        }
+
+        <div class="actions">
+            <button @onclick="SaveRecord" class="btn btn-primary">Save</button>
+            <button @onclick="CloseEditor" class="btn btn-outline-secondary">Cancel</button>
+        </div>
+    </section>
+}
+
+@code {
+    private enum AppTab
+    {
+        Records,
+        Analytics
+    }
+
+    private enum AnalyticsPreset
+    {
+        ThisMonth,
+        Last30Days,
+        ThisYear,
+        All
+    }
+
+    private static readonly string[] Operators = ["+", "-", "*", "/"];
+
+    private List<ExpenseRecord> Records { get; set; } = [];
+    private ExpenseRecord EditingRecord { get; set; } = new() { Id = Guid.Empty };
+    private AppTab ActiveTab { get; set; } = AppTab.Records;
+    private AnalyticsPreset SelectedPreset { get; set; } = AnalyticsPreset.ThisMonth;
+    private bool ShowEditor { get; set; }
+    private String AmountInput { get; set; } = string.Empty;
+    private String SelectedCategory { get; set; } = ExpenseCategories.Other;
+    private String CustomCategory { get; set; } = string.Empty;
+    private String FilterCategory { get; set; } = "All";
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private bool _isApplyingPreset;
+    private DateTime? FromDate
+    {
+        get => _fromDate;
+        set
+        {
+            _fromDate = value;
+            if (!_isApplyingPreset)
+            {
+                SelectedPreset = AnalyticsPreset.All;
+            }
+        }
+    }
+
+    private DateTime? ToDate
+    {
+        get => _toDate;
+        set
+        {
+            _toDate = value;
+            if (!_isApplyingPreset)
+            {
+                SelectedPreset = AnalyticsPreset.All;
+            }
+        }
+    }
+
+    private String CalculatorExpression { get; set; } = "0";
+    private String CalculatorPreview { get; set; } = "0";
+    private DateTime RecordDateTime { get; set; } = DateTime.Now;
+
+    private static readonly String[] CalculatorKeys = ["C", "⌫", "(", ")", "7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "0", ".", "%", "+", "±", "="];
+
+    private IEnumerable<String> AllCategories => Records.Select(r => r.Category).Concat(ExpenseCategories.Defaults).Distinct().OrderBy(c => c);
+
+    private IReadOnlyList<ExpenseRecord> FilteredRecords =>
+        Records
+            .Where(r =>
+                (FilterCategory == "All" || r.Category == FilterCategory) &&
+                (!FromDate.HasValue || r.CreatedAt.ToLocalTime().Date >= FromDate.Value.Date) &&
+                (!ToDate.HasValue || r.CreatedAt.ToLocalTime().Date <= ToDate.Value.Date))
+            .OrderByDescending(r => r.CreatedAt)
+            .ToList();
+
+    private IReadOnlyList<CategoryTotal> ChartItems =>
+        FilteredRecords
+            .GroupBy(r => r.Category)
+            .Select(g => new CategoryTotal(g.Key, g.Sum(x => x.Amount)))
+            .OrderByDescending(x => x.Total)
+            .ToList();
+
+    private IReadOnlyList<TrendPoint> TrendItems => BuildTrendItems(FilteredRecords);
+
+    private IReadOnlyList<AnalyticsKpi> AnalyticsKpis
+    {
+        get
+        {
+            var total = FilteredRecords.Sum(r => r.Amount);
+            var count = FilteredRecords.Count;
+            var highest = FilteredRecords.Count == 0 ? 0 : FilteredRecords.Max(r => r.Amount);
+
+            var daySpan = Math.Max(1, GetRangeDays());
+            var avgPerDay = total / daySpan;
+            var avgPerRecord = count == 0 ? 0 : total / count;
+
+            return
+            [
+                new AnalyticsKpi("Total", total.ToString("0.00"), "fa-solid fa-sack-dollar"),
+                new AnalyticsKpi("Records", count.ToString(), "fa-solid fa-receipt"),
+                new AnalyticsKpi("Avg / day", avgPerDay.ToString("0.00"), "fa-solid fa-calendar-day"),
+                new AnalyticsKpi("Highest", highest.ToString("0.00"), "fa-solid fa-arrow-trend-up"),
+                new AnalyticsKpi("Avg / record", avgPerRecord.ToString("0.00"), "fa-solid fa-calculator")
+            ];
+        }
+    }
+
+    private IReadOnlyList<CategoryRankRow> CategoryRanking
+    {
+        get
+        {
+            var total = ChartItems.Sum(c => c.Total);
+            if (total <= 0)
+            {
+                return [];
+            }
+
+            return ChartItems
+                .Select(c => new CategoryRankRow(c.Category, c.Total, (double)(c.Total / total * 100m)))
+                .ToList();
+        }
+    }
+
+    private record CategoryRankRow(string Category, decimal Amount, double Share);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Records = (await StorageService.GetAllAsync()).OrderByDescending(r => r.CreatedAt).ToList();
+        ApplyPreset(AnalyticsPreset.ThisMonth);
+    }
+
+    private string GetPresetLabel(AnalyticsPreset preset) => preset switch
+    {
+        AnalyticsPreset.ThisMonth => "This Month",
+        AnalyticsPreset.Last30Days => "Last 30 Days",
+        AnalyticsPreset.ThisYear => "This Year",
+        _ => "All"
+    };
+
+    private void ApplyPreset(AnalyticsPreset preset)
+    {
+        SelectedPreset = preset;
+        var today = DateTime.Today;
+        _isApplyingPreset = true;
+
+        switch (preset)
+        {
+            case AnalyticsPreset.ThisMonth:
+                FromDate = new DateTime(today.Year, today.Month, 1);
+                ToDate = today;
+                break;
+            case AnalyticsPreset.Last30Days:
+                FromDate = today.AddDays(-29);
+                ToDate = today;
+                break;
+            case AnalyticsPreset.ThisYear:
+                FromDate = new DateTime(today.Year, 1, 1);
+                ToDate = today;
+                break;
+            case AnalyticsPreset.All:
+                FromDate = null;
+                ToDate = null;
+                break;
+        }
+
+        _isApplyingPreset = false;
+    }
+
+    private int GetRangeDays()
+    {
+        if (FromDate.HasValue && ToDate.HasValue)
+        {
+            return Math.Max(1, (ToDate.Value.Date - FromDate.Value.Date).Days + 1);
+        }
+
+        if (FilteredRecords.Count == 0)
+        {
+            return 1;
+        }
+
+        var min = FilteredRecords.Min(r => r.CreatedAt.ToLocalTime().Date);
+        var max = FilteredRecords.Max(r => r.CreatedAt.ToLocalTime().Date);
+        return Math.Max(1, (max - min).Days + 1);
+    }
+
+    private static IReadOnlyList<TrendPoint> BuildTrendItems(IReadOnlyList<ExpenseRecord> records)
+    {
+        if (records.Count == 0)
+        {
+            return [];
+        }
+
+        var localDates = records.Select(r => r.CreatedAt.ToLocalTime().Date).ToList();
+        var minDate = localDates.Min();
+        var maxDate = localDates.Max();
+        var span = (maxDate - minDate).Days + 1;
+
+        if (span <= 31)
+        {
+            return records
+                .GroupBy(r => r.CreatedAt.ToLocalTime().Date)
+                .OrderBy(g => g.Key)
+                .Select(g => new TrendPoint(g.Key.ToString("MM-dd"), g.Sum(x => x.Amount)))
+                .ToList();
+        }
+
+        if (span <= 180)
+        {
+            return records
+                .GroupBy(r => StartOfWeek(r.CreatedAt.ToLocalTime().Date))
+                .OrderBy(g => g.Key)
+                .Select(g => new TrendPoint($"W {g.Key:MM-dd}", g.Sum(x => x.Amount)))
+                .ToList();
+        }
+
+        return records
+            .GroupBy(r => new DateTime(r.CreatedAt.ToLocalTime().Year, r.CreatedAt.ToLocalTime().Month, 1))
+            .OrderBy(g => g.Key)
+            .Select(g => new TrendPoint(g.Key.ToString("yyyy-MM"), g.Sum(x => x.Amount)))
+            .ToList();
+    }
+
+    private static DateTime StartOfWeek(DateTime date)
+    {
+        var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-diff).Date;
+    }
+
+    private void OpenCreate()
+    {
+        EditingRecord = new ExpenseRecord { Id = Guid.Empty, CreatedAt = DateTime.UtcNow };
+        AmountInput = string.Empty;
+        SelectedCategory = ExpenseCategories.Other;
+        CustomCategory = string.Empty;
+        RecordDateTime = DateTime.Now;
+        ResetCalculator(string.Empty);
+        ShowEditor = true;
+    }
+
+    private void OpenEdit(ExpenseRecord item)
+    {
+        EditingRecord = new ExpenseRecord
+        {
+            Id = item.Id,
+            Amount = item.Amount,
+            Category = item.Category,
+            CreatedAt = item.CreatedAt,
+            Note = item.Note,
+            ReceiptDataUrl = item.ReceiptDataUrl,
+            ReceiptFileName = item.ReceiptFileName
+        };
+
+        AmountInput = item.Amount.ToString("0.##");
+        ResetCalculator(AmountInput);
+        RecordDateTime = item.CreatedAt.ToLocalTime();
+
+        if (ExpenseCategories.Defaults.Contains(item.Category))
+        {
+            SelectedCategory = item.Category;
+            CustomCategory = string.Empty;
+        }
+        else
+        {
+            SelectedCategory = ExpenseCategories.Other;
+            CustomCategory = item.Category;
+        }
+
+        ShowEditor = true;
+    }
+
+    private void OnAmountInputChanged(ChangeEventArgs args)
+    {
+        AmountInput = args.Value?.ToString()?.Trim() ?? string.Empty;
+        CalculatorExpression = string.IsNullOrWhiteSpace(AmountInput) ? "0" : AmountInput;
+        CalculatorPreview = AmountInput;
+    }
+
+    private void ApplyCalcKey(string key)
+    {
+        switch (key)
+        {
+            case "C":
+                ResetCalculator(string.Empty);
+                return;
+            case "⌫":
+                CalculatorExpression = CalculatorExpression.Length <= 1 ? "0" : CalculatorExpression[..^1];
+                RefreshCalculatorPreview();
+                return;
+            case "±":
+                ToggleSign();
+                return;
+            case "%":
+                ApplyPercentToLastNumber();
+                return;
+            case "=":
+                EvaluateCalculatorExpression();
+                return;
+        }
+
+        if (CalculatorExpression == "0" && key is not "." and not ")")
+        {
+            CalculatorExpression = string.Empty;
+        }
+
+        if (IsOperator(key) && (string.IsNullOrWhiteSpace(CalculatorExpression) || IsOperator(CalculatorExpression[^1].ToString()) || CalculatorExpression.EndsWith("(")))
+        {
+            return;
+        }
+
+        if (key == "." && LastTokenHasDot())
+        {
+            return;
+        }
+
+        CalculatorExpression += key;
+        RefreshCalculatorPreview();
+    }
+
+    private void ToggleSign()
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(CalculatorExpression, @"-?\d+(\.\d+)?$");
+        if (!match.Success)
+        {
+            return;
+        }
+
+        var number = match.Value;
+        var toggled = number.StartsWith('-') ? number[1..] : $"-{number}";
+        CalculatorExpression = CalculatorExpression[..match.Index] + toggled;
+        RefreshCalculatorPreview();
+    }
+
+    private void ApplyPercentToLastNumber()
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(CalculatorExpression, @"\d+(\.\d+)?$");
+        if (!match.Success)
+        {
+            return;
+        }
+
+        if (!decimal.TryParse(match.Value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var value))
+        {
+            return;
+        }
+
+        var percentValue = (value / 100m).ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
+        CalculatorExpression = CalculatorExpression[..match.Index] + percentValue;
+        RefreshCalculatorPreview();
+    }
+
+    private void EvaluateCalculatorExpression()
+    {
+        var value = TryEvaluate(CalculatorExpression);
+        if (!value.HasValue)
+        {
+            return;
+        }
+
+        var result = value.Value.ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
+        CalculatorExpression = result;
+        AmountInput = value.Value.ToString("0.##");
+        CalculatorPreview = AmountInput;
+    }
+
+    private void RefreshCalculatorPreview()
+    {
+        var value = TryEvaluate(CalculatorExpression);
+        if (value.HasValue)
+        {
+            CalculatorPreview = value.Value.ToString("0.##");
+            AmountInput = CalculatorPreview;
+            return;
+        }
+
+        CalculatorPreview = CalculatorExpression;
+    }
+
+    private void ResetCalculator(string value)
+    {
+        CalculatorExpression = string.IsNullOrWhiteSpace(value) ? "0" : value.Replace(',', '.');
+        CalculatorPreview = string.IsNullOrWhiteSpace(value) ? "0" : value;
+        AmountInput = value;
+    }
+
+    private static bool IsOperator(string token) => Operators.Contains(token);
+
+    private bool LastTokenHasDot()
+    {
+        for (var i = CalculatorExpression.Length - 1; i >= 0; i--)
+        {
+            if (IsOperator(CalculatorExpression[i].ToString()) || CalculatorExpression[i] is '(' or ')')
+            {
+                return false;
+            }
+
+            if (CalculatorExpression[i] == '.')
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static decimal? TryEvaluate(string expression)
+    {
+        if (string.IsNullOrWhiteSpace(expression))
+        {
+            return null;
+        }
+
+        expression = expression.Replace(',', '.').Replace(" ", string.Empty);
+
+        if (expression.Any(c => !char.IsDigit(c) && c is not '.' and not '+' and not '-' and not '*' and not '/' and not '(' and not ')'))
+        {
+            return null;
+        }
+
+        try
+        {
+            var values = new Stack<decimal>();
+            var ops = new Stack<char>();
+
+            for (var i = 0; i < expression.Length; i++)
+            {
+                var ch = expression[i];
+
+                if (char.IsDigit(ch) || ch == '.' || (ch == '-' && (i == 0 || expression[i - 1] is '(' or '+' or '-' or '*' or '/')))
+                {
+                    var start = i;
+                    if (ch == '-')
+                    {
+                        i++;
+                    }
+
+                    while (i < expression.Length && (char.IsDigit(expression[i]) || expression[i] == '.'))
+                    {
+                        i++;
+                    }
+
+                    var numberToken = expression[start..i];
+                    if (!decimal.TryParse(numberToken, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var number))
+                    {
+                        return null;
+                    }
+
+                    values.Push(number);
+                    i--;
+                    continue;
+                }
+
+                if (ch == '(')
+                {
+                    ops.Push(ch);
+                    continue;
+                }
+
+                if (ch == ')')
+                {
+                    while (ops.Count > 0 && ops.Peek() != '(')
+                    {
+                        if (!ApplyOperator(values, ops.Pop()))
+                        {
+                            return null;
+                        }
+                    }
+
+                    if (ops.Count == 0 || ops.Pop() != '(')
+                    {
+                        return null;
+                    }
+
+                    continue;
+                }
+
+                if (ch is '+' or '-' or '*' or '/')
+                {
+                    while (ops.Count > 0 && ops.Peek() != '(' && Precedence(ops.Peek()) >= Precedence(ch))
+                    {
+                        if (!ApplyOperator(values, ops.Pop()))
+                        {
+                            return null;
+                        }
+                    }
+
+                    ops.Push(ch);
+                    continue;
+                }
+
+                return null;
+            }
+
+            while (ops.Count > 0)
+            {
+                if (!ApplyOperator(values, ops.Pop()))
+                {
+                    return null;
+                }
+            }
+
+            return values.Count == 1 ? values.Pop() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool ApplyOperator(Stack<decimal> values, char op)
+    {
+        if (values.Count < 2)
+        {
+            return false;
+        }
+
+        var b = values.Pop();
+        var a = values.Pop();
+
+        var result = op switch
+        {
+            '+' => a + b,
+            '-' => a - b,
+            '*' => a * b,
+            '/' when b != 0 => a / b,
+            _ => decimal.MinValue
+        };
+
+        if (result == decimal.MinValue)
+        {
+            return false;
+        }
+
+        values.Push(result);
+        return true;
+    }
+
+    private static int Precedence(char op) => op is '*' or '/' ? 2 : 1;
+
+    private string GetCalcButtonClass(string key)
+    {
+        if (key == "=")
+        {
+            return "btn btn-primary calc-equals";
+        }
+
+        if (key is "C" or "⌫")
+        {
+            return "btn btn-outline-danger calc-danger";
+        }
+
+        if (key is "+" or "-" or "*" or "/" or "%" or "±")
+        {
+            return "btn btn-outline-primary calc-operator";
+        }
+
+        return "btn btn-light";
+    }
+
+    private async Task OnReceiptSelected(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null)
+        {
+            return;
+        }
+
+        var scanned = await OcrService.ScanAsync(file);
+        if (scanned is null)
+        {
+            return;
+        }
+
+        EditingRecord.ReceiptFileName = scanned.FileName;
+        EditingRecord.ReceiptDataUrl = scanned.DataUrl;
+
+        if (scanned.Amount.HasValue && string.IsNullOrWhiteSpace(AmountInput))
+        {
+            AmountInput = scanned.Amount.Value.ToString("0.00");
+            ResetCalculator(AmountInput);
+        }
+
+        if (!string.IsNullOrWhiteSpace(scanned.Category))
+        {
+            if (ExpenseCategories.Defaults.Contains(scanned.Category))
+            {
+                SelectedCategory = scanned.Category;
+                CustomCategory = string.Empty;
+            }
+            else
+            {
+                SelectedCategory = ExpenseCategories.Other;
+                CustomCategory = scanned.Category;
+            }
+        }
+    }
+
+    private async Task SaveRecord()
+    {
+        var amount = TryEvaluate(AmountInput) ?? TryEvaluate(CalculatorExpression);
+        if (!amount.HasValue || amount <= 0)
+        {
+            return;
+        }
+
+        var category = SelectedCategory == ExpenseCategories.Other ? CustomCategory.Trim() : SelectedCategory;
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            category = ExpenseCategories.Other;
+        }
+
+        var toSave = new ExpenseRecord
+        {
+            Id = EditingRecord.Id == Guid.Empty ? Guid.NewGuid() : EditingRecord.Id,
+            Amount = amount.Value,
+            Category = category,
+            CreatedAt = DateTime.SpecifyKind(RecordDateTime, DateTimeKind.Local).ToUniversalTime(),
+            Note = EditingRecord.Note,
+            ReceiptDataUrl = EditingRecord.ReceiptDataUrl,
+            ReceiptFileName = EditingRecord.ReceiptFileName
+        };
+
+        await StorageService.UpsertAsync(toSave);
+        Records = (await StorageService.GetAllAsync()).OrderByDescending(r => r.CreatedAt).ToList();
+        CloseEditor();
+    }
+
+    private void CloseEditor()
+    {
+        ShowEditor = false;
+    }
+}

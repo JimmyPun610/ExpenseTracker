@@ -1,0 +1,20 @@
+<button class="record-item" @onclick="HandleClick">
+    <span class="record-main">
+        <span class="record-category">@Item.Category</span>
+        <small class="record-date">
+            <i class="fa-regular fa-clock"></i>
+            @Item.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+        </small>
+        <small class="record-note @(string.IsNullOrWhiteSpace(Item.Note) ? "muted" : null)">
+            @(!string.IsNullOrWhiteSpace(Item.Note) ? Item.Note : "No note")
+        </small>
+    </span>
+    <span class="amount">@Item.Amount.ToString("0.00")</span>
+</button>
+
+@code {
+    [Parameter, EditorRequired] public ExpenseRecord Item { get; set; } = default!;
+    [Parameter] public EventCallback<ExpenseRecord> OnSelect { get; set; }
+
+    private Task HandleClick() => OnSelect.InvokeAsync(Item);
+}

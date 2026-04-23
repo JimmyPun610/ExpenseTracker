@@ -1,0 +1,78 @@
+@using ExpenseTracker.Models
+
+@if (Segments.Count == 0)
+{
+    <p>No data for selected period.</p>
+}
+else
+{
+    <svg viewBox="0 0 42 42" class="pie-chart">
+        @foreach (var segment in Segments)
+        {
+            <circle
+                class="pie-segment"
+                cx="21"
+                cy="21"
+                r="15.915494309"
+                fill="transparent"
+                stroke="@segment.Color"
+                stroke-width="8"
+                stroke-dasharray="@segment.DashArray"
+                stroke-dashoffset="@segment.DashOffset" />
+        }
+    </svg>
+
+    <ul class="pie-legend">
+        @foreach (var segment in Segments)
+        {
+            <li>
+                <span class="swatch" style="background-color: @segment.Color"></span>
+                <span>@segment.Label</span>
+                <strong>@segment.Value.ToString("0.00") (@segment.Percent.ToString("0.#")%)</strong>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<CategoryTotal> Items { get; set; } = [];
+
+    private readonly string[] _colors =
+    [
+        "#3b82f6",
+        "#14b8a6",
+        "#f59e0b",
+        "#ef4444",
+        "#8b5cf6",
+        "#10b981",
+        "#6b7280"
+    ];
+
+    private List<PieSegment> Segments { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        var total = Items.Sum(i => i.Total);
+        if (total <= 0)
+        {
+            Segments = [];
+            return;
+        }
+
+        var segments = new List<PieSegment>();
+        decimal runningPercent = 0;
+
+        for (var i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            var percent = item.Total / total * 100;
+            var dash = $"{percent} {100 - percent}";
+            segments.Add(new PieSegment(item.Category, item.Total, (double)percent, _colors[i % _colors.Length], dash, (double)-runningPercent));
+            runningPercent += percent;
+        }
+
+        Segments = segments;
+    }
+
+    private record PieSegment(string Label, decimal Value, double Percent, string Color, string DashArray, double DashOffset);
+}
