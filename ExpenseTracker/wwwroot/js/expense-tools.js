@@ -78,3 +78,8 @@ function inferCategory(text) {
 
     return "Other";
 }
+function isIosSafariNotInstalled() {
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isInStandaloneMode = window.navigator.standalone === true;
+    return isIos && !isInStandaloneMode;
+}

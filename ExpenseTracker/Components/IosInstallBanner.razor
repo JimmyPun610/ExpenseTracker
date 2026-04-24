@@ -1,0 +1,24 @@
+@inject IJSRuntime JS
+
+@if (_showBanner)
+{
+    <div class="ios-install-banner">
+        📲 Install this app: tap <strong>Share</strong> then <strong>"Add to Home Screen"</strong>
+        <button @onclick="Dismiss">✕</button>
+    </div>
+}
+
+@code {
+    private bool _showBanner;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _showBanner = await JS.InvokeAsync<bool>("isIosSafariNotInstalled");
+            StateHasChanged();
+        }
+    }
+
+    private void Dismiss() => _showBanner = false;
+}
