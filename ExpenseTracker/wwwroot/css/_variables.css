@@ -1,0 +1,54 @@
+﻿@charset "UTF-8";
+:root {
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  /* ── Page ───────────────────────────────────────────────────────────────── */
+  --color-bg: #f3f6fb;
+  --color-text: #0f172a;
+  --color-white: #ffffff;
+  /* ── Primary (blue) ─────────────────────────────────────────────────────── */
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-mid: #3b82f6;
+  --color-primary-soft: #60a5fa;
+  --color-primary-light: #dbeafe;
+  --color-primary-border: #93c5fd;
+  --color-primary-deep: #1e3a8a;
+  --color-loading-active: #1b6ec2;
+  /* ── Indigo ─────────────────────────────────────────────────────────────── */
+  --color-indigo: #6366f1;
+  --color-indigo-dark: #4f46e5;
+  --color-indigo-light: #c7d2fe;
+  --color-indigo-border: #a5b4fc;
+  /* ── Slate (neutrals) ───────────────────────────────────────────────────── */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  /* ── Red ────────────────────────────────────────────────────────────────── */
+  --color-red: #ef4444;
+  --color-red-dark: #dc2626;
+  --color-red-light: #fee2e2;
+  --color-red-mid: #fecaca;
+  --color-red-border: #fca5a5;
+  --color-red-deep: #991b1b;
+  --color-red-darkest: #7f1d1d;
+  /* ── Green ──────────────────────────────────────────────────────────────── */
+  --color-green: #22c55e;
+  --color-green-light: #dcfce7;
+  --color-green-dark: #166534;
+  /* ── Calculator screen ──────────────────────────────────────────────────── */
+  --color-calc-bg: #0b1220;
+  --color-calc-text: #f1f5f9;
+  --color-calc-subtext: #cbd5e1;
+  --color-calc-strong: #f8fafc;
+  /* ── Misc ───────────────────────────────────────────────────────────────── */
+  --color-loading-track: #e0e0e0;
+  --color-calc-shell-bg1: #f8fbff;
+  --color-calc-shell-border: #dbe3f0;
+  --color-calc-btn-border: #d4dce8;
+}

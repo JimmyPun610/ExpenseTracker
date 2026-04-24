@@ -1,0 +1,50 @@
+﻿[
+  {
+    "outputFile": "wwwroot/css/scss/_about.css",
+    "inputFile": "wwwroot/css/scss/_about.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_analytics.css",
+    "inputFile": "wwwroot/css/scss/_analytics.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_animations.css",
+    "inputFile": "wwwroot/css/scss/_animations.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_base.css",
+    "inputFile": "wwwroot/css/scss/_base.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_blazor.css",
+    "inputFile": "wwwroot/css/scss/_blazor.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_calculator.css",
+    "inputFile": "wwwroot/css/scss/_calculator.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_modal.css",
+    "inputFile": "wwwroot/css/scss/_modal.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_layout.css",
+    "inputFile": "wwwroot/css/scss/_layout.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_records.css",
+    "inputFile": "wwwroot/css/scss/_records.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_responsive.css",
+    "inputFile": "wwwroot/css/scss/_responsive.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_settings.css",
+    "inputFile": "wwwroot/css/scss/_settings.scss"
+  },
+  {
+    "outputFile": "wwwroot/css/scss/_variables.css",
+    "inputFile": "wwwroot/css/scss/_variables.scss"
+  }
+]

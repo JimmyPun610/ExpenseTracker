@@ -1,0 +1,161 @@
+.pie-chart {
+    width: 220px;
+    display: block;
+    margin: 0 auto 1rem;
+}
+
+.pie-legend {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: .4rem;
+}
+
+.pie-legend li {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .92rem;
+}
+
+.pie-legend li strong {
+    margin-left: auto;
+}
+
+.swatch {
+    width: .8rem;
+    height: .8rem;
+    border-radius: .2rem;
+}
+
+.fab {
+    border: 0;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 999px;
+    font-size: 1.6rem;
+    color: var(--color-white);
+    background: var(--color-primary);
+    position: fixed;
+    right: 1.5rem;
+    bottom: calc(56px + 1rem + env(safe-area-inset-bottom));
+    box-shadow: 0 12px 20px rgba(37, 99, 235, .45);
+}
+
+.analytics-presets {
+    display: flex;
+    gap: .45rem;
+    margin-bottom: .85rem;
+    flex-wrap: wrap;
+}
+
+.analytics-presets button {
+    border: 1px solid var(--color-slate-300);
+    background: var(--color-white);
+    color: var(--color-slate-700);
+    border-radius: 999px;
+    padding: .35rem .75rem;
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.analytics-presets button.active {
+    border-color: var(--color-primary-mid);
+    background: var(--color-primary-light);
+    color: var(--color-primary-deep);
+}
+
+.kpi-grid {
+    display: grid;
+    gap: .65rem;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    margin-bottom: 1rem;
+}
+
+.kpi-card {
+    border: 1px solid var(--color-slate-200);
+    background: var(--color-white);
+    border-radius: .75rem;
+    padding: .6rem .7rem;
+    display: grid;
+    gap: .2rem;
+}
+
+.kpi-card i {
+    color: var(--color-primary);
+}
+
+.kpi-card span {
+    color: var(--color-slate-500);
+    font-size: .78rem;
+}
+
+.kpi-card strong {
+    font-size: 1rem;
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+}
+
+.analytics-panel {
+    border: 1px solid var(--color-slate-200);
+    border-radius: .8rem;
+    padding: .75rem;
+    background: var(--color-white);
+}
+
+.analytics-panel h3 {
+    margin: 0 0 .7rem;
+    font-size: .95rem;
+}
+
+.trend-chart {
+    height: 165px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(20px, 1fr);
+    gap: .35rem;
+    align-items: end;
+    overflow-x: auto;
+    padding-bottom: .2rem;
+}
+
+.trend-bar-item {
+    display: grid;
+    gap: .25rem;
+    align-items: end;
+    justify-items: center;
+    min-width: 20px;
+}
+
+.trend-bar {
+    width: 100%;
+    min-height: 8px;
+    border-radius: .35rem .35rem .2rem .2rem;
+    background: linear-gradient(180deg, var(--color-primary-soft) 0%, var(--color-primary) 100%);
+}
+
+.trend-bar-item small {
+    font-size: .68rem;
+    color: var(--color-slate-500);
+    white-space: nowrap;
+}
+
+.ranking-table-wrap {
+    overflow-x: auto;
+}
+
+.ranking-table {
+    margin-bottom: 0;
+}
+
+.ranking-table thead th {
+    font-size: .78rem;
+    color: var(--color-slate-500);
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}

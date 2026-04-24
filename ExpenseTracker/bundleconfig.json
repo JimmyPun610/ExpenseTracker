@@ -1,0 +1,23 @@
+[
+  {
+    "outputFileName": "wwwroot/css/app.css",
+    "inputFiles": [
+      "wwwroot/css/_about.css",
+      "wwwroot/css/_analytics.css",
+      "wwwroot/css/_animations.css",
+      "wwwroot/css/_base.css",
+      "wwwroot/css/_blazor.css",
+      "wwwroot/css/_calculator.css",
+      "wwwroot/css/_layout.css",
+      "wwwroot/css/_modal.css",
+      "wwwroot/css/_records.css",
+      "wwwroot/css/_responsive.css",
+      "wwwroot/css/_settings.css",
+      "wwwroot/css/_variables.css"
+    ],
+    "minify": {
+      "enabled": true,
+      "adjustRelativePaths": false
+    }
+  }
+]
